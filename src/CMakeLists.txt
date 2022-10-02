@@ -20,7 +20,6 @@ target_compile_options(TinyTcpServer PRIVATE
             "$<$<CONFIG:Release>:${CXX_FLAGS_RELEASE}>")
 #target_compile_options(TinyNet PRIVATE "-fsanitize=address" "-fsanitize=undefined")
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message("CMAKE_BUILD_TYPE == " ${CMAKE_BUILD_TYPE})
     target_link_options(TinyTcpServer PRIVATE ${SANITIZE_FLAG})
 endif()
 

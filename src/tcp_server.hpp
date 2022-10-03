@@ -38,12 +38,15 @@ struct tcp_server {
       socklen_t client_len = sizeof(sockaddr);
       int connfd = co_await m_sched.add_accept_request(
           m_acceptor.getListenFd(), &client_addr, &client_len);
-      std::cout << "connfd = " << connfd << '\n';
+      // std::cout << "connfd = " << connfd << '\n';
       if (connfd < 0) [[unlikely]] {
         // log
         continue;
       } else {
-        handle_conn(connfd).detach();
+        /* 将connfd添加到子线程 */
+        if (m_sched.addFdToWorkThread(connfd) == false) [[unlikely]] {
+          ::close(connfd);
+        }
       }
     }
     co_return;

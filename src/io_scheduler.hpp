@@ -1,7 +1,8 @@
 #pragma once
+#include "poll_info.hpp"
 #include "task.hpp"
+#include "work_thread.hpp"
 #include <atomic>
-#include <coroutine>
 #include <cstring>
 #include <iostream>
 #include <liburing.h>
@@ -10,25 +11,6 @@
 #include <iostream>
 #include <netinet/in.h>
 #include <sys/socket.h>
-
-struct poll_info {
-  std::coroutine_handle<> m_awaiting_coroutine;
-  int m_res;
-  struct poll_awaiter {
-    poll_info &m_pi;
-    explicit poll_awaiter(poll_info &pi) noexcept : m_pi(pi) {}
-    auto await_ready() noexcept -> bool { return false; }
-    auto await_resume() noexcept -> int { return m_pi.m_res; }
-    auto await_suspend(std::coroutine_handle<> awaiting_coroutine) noexcept
-        -> void {
-      m_pi.m_awaiting_coroutine = awaiting_coroutine;
-    }
-  };
-
-  auto operator co_await() noexcept -> poll_awaiter {
-    return poll_awaiter{*this};
-  }
-};
 
 class io_scheduler {
 public:
@@ -49,7 +31,7 @@ public:
   };
 
 public:
-  io_scheduler(unsigned int entries) {
+  io_scheduler(unsigned int entries) : m_work_threads(8) {
     io_uring_params params{};
     if (io_uring_queue_init_params(entries, &m_uring, &params) < 0)
         [[unlikely]] {
@@ -101,10 +83,15 @@ public:
 
   void loop();
 
+  bool addFdToWorkThread(int fd) {
+    return m_work_threads.get_work_thread()->addFd(fd);
+  }
+
 private:
   io_uring m_uring;
   std::atomic_flag Running{true};
   std::vector<std::coroutine_handle<>> m_tasks;
+  work_thread_pool m_work_threads;
 };
 
 void io_scheduler::loop() {
@@ -122,7 +109,6 @@ void io_scheduler::loop() {
       }
       auto *ptr = reinterpret_cast<poll_info *>(cqe->user_data);
       ptr->m_res = cqe->res;
-      /* 这里其实可以多开几个线程loop */
       ptr->m_awaiting_coroutine.resume();
     }
     io_uring_cq_advance(&m_uring, count);

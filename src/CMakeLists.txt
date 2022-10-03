@@ -2,7 +2,10 @@ set(HEADER_LIST
     "acceptor.hpp"
     "io_scheduler.hpp"
     "task.hpp"
-    "tcp_server.hpp")
+    "tcp_server.hpp"
+    "poll_info.hpp"
+    "work_thread.hpp"
+    "spsc.hpp")
 set(SRC_LIST
     "acceptor.cpp")
 
